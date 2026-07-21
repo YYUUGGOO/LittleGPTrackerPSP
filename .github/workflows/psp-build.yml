@@ -1,0 +1,31 @@
+name: PSP build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: pspdev/pspdev:latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build EBOOT and USB MIDI driver package
+        working-directory: projects
+        run: make -j2
+
+      - name: Assemble PSP install folder
+        working-directory: projects/buildPSP
+        run: |
+          mkdir -p LittleGPTracker
+          cp EBOOT.PBP UsbMidiDriver.prx ../resources/PSP/config.xml ../resources/PSP/mapping.xml ../resources/PSP/INSTALL_HOW_TO.txt LittleGPTracker/
+
+      - name: Upload PSP build
+        uses: actions/upload-artifact@v4
+        with:
+          name: LittleGPTracker-PSP
+          path: projects/buildPSP/LittleGPTracker

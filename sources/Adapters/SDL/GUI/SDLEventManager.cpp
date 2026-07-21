@@ -8,6 +8,10 @@
 bool SDLEventManager::finished_=false ;
 bool SDLEventManager::dumpEvent_=false ;
 
+#ifdef PLATFORM_PSP
+extern volatile int g_psp_exit_requested;
+#endif
+
 SDLEventManager::SDLEventManager() 
 {
 }
@@ -77,10 +81,23 @@ int SDLEventManager::MainLoop()
 {
 	GUIWindow *appWindow=Application::GetInstance()->GetWindow() ;
 	SDLGUIWindowImp *sdlWindow=(SDLGUIWindowImp *)appWindow->GetImpWindow() ;
-	while (!finished_)
+	while (!finished_
+#ifdef PLATFORM_PSP
+           && !g_psp_exit_requested
+#endif
+    )
 	{
 		SDL_Event event;
-		if (SDL_WaitEvent(&event)) 
+#ifdef PLATFORM_PSP
+        int gotEvent = SDL_PollEvent(&event);
+        if (!gotEvent) {
+            SDL_Delay(10);
+            continue;
+        }
+#else
+        int gotEvent = SDL_WaitEvent(&event);
+#endif
+		if (gotEvent)
     {
 			switch (event.type) {
 				case SDL_KEYDOWN:

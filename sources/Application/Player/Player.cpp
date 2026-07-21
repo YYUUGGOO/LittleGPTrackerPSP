@@ -124,7 +124,7 @@ void Player::Start(PlayMode mode,bool forceSongMode) {
 	mixer_->OnPlayerStart() ;
 
 	MidiService *ms=MidiService::GetInstance() ;
-	ms->OnPlayerStart() ;
+	ms->OnPlayerStart(viewData_->playMode_ != PM_AUDITION) ;
 
   switch(viewData_->playMode_)
   {
@@ -1211,4 +1211,3 @@ int Player::GetAudioPreBufferCount() {
 	AudioOut *out=mixer_->GetAudioOut() ;
 	return (out)?out->GetAudioPreBufferCount():0 ;
 } ;
-

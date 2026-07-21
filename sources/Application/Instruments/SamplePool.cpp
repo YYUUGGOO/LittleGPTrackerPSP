@@ -135,13 +135,23 @@ bool SamplePool::loadSample(const char *path) {
     Path wavPath(path);
     WavFile *wave=WavFile::Open(path) ;
 	if (wave) {
-		wav_[count_]=wave ;
-		const std::string name=wavPath.GetName() ;
-		names_[count_]=(char*)SYS_MALLOC(name.length()+1) ;
-		strcpy(names_[count_],name.c_str()) ;
-		count_++ ;
-		wave->GetBuffer(0,wave->GetSize(-1)) ;
+		if (!wave->GetBuffer(0,wave->GetSize(-1))) {
+			Trace::Error("Failed to read sample data for %s",wavPath.GetName().c_str()) ;
+			delete wave ;
+			return false ;
+		}
 		wave->Close() ;
+		const std::string name=wavPath.GetName() ;
+		char *sampleName=(char*)SYS_MALLOC(name.length()+1) ;
+		if (!sampleName) {
+			Trace::Error("Failed to allocate sample name for %s",name.c_str()) ;
+			delete wave ;
+			return false ;
+		}
+		strcpy(sampleName,name.c_str()) ;
+		wav_[count_]=wave ;
+		names_[count_]=sampleName ;
+		count_++ ;
 		return true ;
 	} else {
 		Trace::Error("Failed to load samples %s",wavPath.GetName().c_str()) ;
@@ -149,7 +159,7 @@ bool SamplePool::loadSample(const char *path) {
  	}
 }
 
-#define IMPORT_CHUNK_SIZE 1000
+#define IMPORT_CHUNK_SIZE (64*1024)
 
 int SamplePool::ImportSample(Path &path) {
 
@@ -182,29 +192,59 @@ int SamplePool::ImportSample(Path &path) {
 
 	// copy file to current project
 
-	char buffer[IMPORT_CHUNK_SIZE] ;
+	char *buffer=(char *)SYS_MALLOC(IMPORT_CHUNK_SIZE) ;
+	if (!buffer) {
+		fin->Close() ;
+		fout->Close() ;
+		delete fin ;
+		delete fout ;
+		FileSystem::GetInstance()->Delete(dstPath.GetPath().c_str()) ;
+		Trace::Error("Failed to allocate sample import buffer") ;
+		return -1 ;
+	}
+	bool copySucceeded=true ;
 	while (size>0) {
 		int count=(size>IMPORT_CHUNK_SIZE)?IMPORT_CHUNK_SIZE:size ;
-		fin->Read(buffer,1,count) ;
-		fout->Write(buffer,1,count) ;
-		size-=count ;
+		int bytesRead=fin->Read(buffer,1,count) ;
+		if (bytesRead<=0) {
+			copySucceeded=false ;
+			break ;
+		}
+		int written=0 ;
+		while (written<bytesRead) {
+			int result=fout->Write(buffer+written,1,bytesRead-written) ;
+			if (result<=0) {
+				copySucceeded=false ;
+				break ;
+			}
+			written+=result ;
+		}
+		if (!copySucceeded) break ;
+		size-=bytesRead ;
 	} ;
+	SAFE_FREE(buffer) ;
 
 	fin->Close() ;
 	fout->Close() ;
 	delete(fin) ;
 	delete(fout) ;
+	if (!copySucceeded || size!=0) {
+		FileSystem::GetInstance()->Delete(dstPath.GetPath().c_str()) ;
+		Trace::Error("Failed while copying imported sample") ;
+		return -1 ;
+	}
 
 	// now load the sample
 
 	bool status=loadSample(dstPath.GetPath().c_str()) ;
 
+	if (!status) return -1 ;
 	SetChanged() ;
 	SamplePoolEvent ev ;
 	ev.index_=count_-1 ;
 	ev.type_=SPET_INSERT ;
 	NotifyObservers(&ev) ;
-	return status?(count_-1):-1 ;
+	return count_-1 ;
 };
 
 bool SamplePool::IsImported(std::string name) {

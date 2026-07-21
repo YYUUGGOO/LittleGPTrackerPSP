@@ -34,7 +34,7 @@ int PSPFile::Write(const void *ptr,int size, int nmemb) {
 		flush() ;
 	}
 	if (len>WRITE_BUFFER_SIZE) {
-		sceIoWrite(file_,ptr,len);
+		return sceIoWrite(file_,ptr,len);
 	} else {
 		memcpy(writeBuffer_+writeBufferPos_,ptr,len) ;
 		writeBufferPos_+=len ;
@@ -127,8 +127,8 @@ I_File *PSPFileSystem::Open(const char *path,char *mode) {
         case 'r':
             flags=PSP_O_RDONLY ;
             break ;
-        case 'w':
-            flags=PSP_O_WRONLY|PSP_O_CREAT ;
+		case 'w':
+			flags=PSP_O_WRONLY|PSP_O_CREAT|PSP_O_TRUNC ;
             break ;
         default:
             return 0 ;

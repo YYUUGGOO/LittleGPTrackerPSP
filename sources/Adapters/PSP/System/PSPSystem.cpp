@@ -1,6 +1,6 @@
 
 #include "PSPSystem.h"
-#include "Adapters/Dummy/Midi/DummyMidi.h"
+#include "Adapters/PSP/Midi/PSPMidiService.h"
 #include "Adapters/SDL/Audio/SDLAudio.h"
 #include "Adapters/SDL/GUI/SDLEventManager.h"
 #include "Adapters/SDL/GUI/GUIFactory.h"
@@ -64,8 +64,9 @@ void PSPSystem::Boot(int argc,char **argv) {
 	hints.preBufferCount_=6 ;
 	Audio::Install(new SDLAudio(hints)) ;
 
-	// Install Midi
-	MidiService::Install(new DummyMidi()) ;
+	// Install USB MIDI. The kernel PRX is packaged beside EBOOT.PBP.
+	Path midiDriverPath("bin:UsbMidiDriver.prx") ;
+	MidiService::Install(new PSPMidiService(midiDriverPath.GetPath().c_str())) ;
 
 	// Install Threads
 
@@ -112,6 +113,7 @@ void PSPSystem::Boot(int argc,char **argv) {
 } ;
 
 void PSPSystem::Shutdown() {
+	MidiService::GetInstance()->Close() ;
 } ;
 
 unsigned long PSPSystem::GetClock() {

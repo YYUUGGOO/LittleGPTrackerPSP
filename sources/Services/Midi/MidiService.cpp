@@ -11,7 +11,7 @@
 
 MidiService::MidiService()
     : T_SimpleList<MidiOutDevice>(true), inList_(true), device_(0),
-      sendSync_(true) {
+      sendSync_(true), transportRunning_(false) {
     for (int i = 0; i < MIDI_MAX_BUFFERS; i++) {
         queues_[i] = new T_SimpleList<MidiMessage>(true);
     }
@@ -52,6 +52,9 @@ void MidiService::SelectDevice(const std::string &name) { deviceName_ = name; };
 bool MidiService::Start() {
     currentPlayQueue_ = 0;
     currentOutQueue_ = 0;
+    if (!device_ && deviceName_.size() != 0) {
+        startDevice();
+    }
     return true;
 };
 
@@ -70,7 +73,7 @@ void MidiService::QueueMessage(MidiMessage &m) {
 
 void MidiService::Trigger() {
     AdvancePlayQueue();
-    if (device_ && sendSync_) {
+    if (device_ && sendSync_ && transportRunning_) {
         SyncMaster *sm = SyncMaster::GetInstance();
         if (sm->MidiSlice()) {
             MidiMessage msg;
@@ -173,16 +176,16 @@ void MidiService::stopDevice() {
 /*
  * starts midi device when playback starts
  */
-void MidiService::OnPlayerStart() {
+void MidiService::OnPlayerStart(bool enableTransportSync) {
     if (deviceName_.size() != 0) {
-        stopDevice();
-        startDevice();
-        deviceName_ = "";
-    } else {
-        startDevice();
+        if (!device_ || strcmp(deviceName_.c_str(), device_->GetName())) {
+            stopDevice();
+            startDevice();
+        }
     }
 
-    if (sendSync_) {
+    transportRunning_ = enableTransportSync;
+    if (sendSync_ && transportRunning_) {
         MidiMessage msg;
         msg.status_ = 0xFA;
         QueueMessage(msg);
@@ -193,9 +196,10 @@ void MidiService::OnPlayerStart() {
  * queues midi stop message when player stops
  */
 void MidiService::OnPlayerStop() {
-    if (sendSync_) {
+    if (sendSync_ && transportRunning_) {
         MidiMessage msg;
         msg.status_ = 0xFC;
         QueueMessage(msg);
     }
+    transportRunning_ = false;
 };

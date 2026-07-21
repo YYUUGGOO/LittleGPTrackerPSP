@@ -1,6 +1,8 @@
 <CONFIG>
-	<DUMPEVENT value="YES"/><!--debug logging-->>
+	<DUMPEVENT value="NO"/> <!-- avoid release-build event logging overhead -->
 	<AUTO_LOAD_LAST value="YES"/> <!-- change to disable auto loading -->
+	<MIDISENDSYNC value="YES"/> <!-- MIDI Start, Clock (24 PPQN), and Stop -->
+	<SAMPLELOADCHUNKSIZE value="131072"/> <!-- 128 KiB sequential sample reads -->
 	<SCREENMULT value="1"/> <!-- Does nothing on PSP -->
 
 <!-- Default colors below -->
@@ -17,6 +19,6 @@
     <ROWCOLOR1    value = "BA28F9" /> <!--Row count color 1 -->
     <ROWCOLOR2    value = "FF00FF" /> <!--Row count color 2-->
     <ALTROWNUMBER value = "4"/>       <!--How many rows before alternating-->
-    <FONTTYPE     value = '0' />      <!-- '0':original '1':digital '2':monster 'CUSTOM': load custom_font.xml-->
+	<FONTTYPE     value = '0' />      <!-- PSP fork ships the original font -->
 
 </CONFIG>

@@ -1,5 +1,14 @@
 Install contents of zip in a folder of your memory stick or PPSSPP folder
 
+USB MIDI:
+        Keep UsbMidiDriver.prx beside EBOOT.PBP. On real PSP hardware, connect
+        the PSP USB port to a class-compliant USB MIDI host. LGPT exposes one
+        output named "PSP USB MIDI" and sends notes, CC/program data, MIDI Start,
+        24 PPQN MIDI Clock, and MIDI Stop. USB MIDI initializes automatically at
+        startup. The PSP clock uses its own monotonic timing thread so file and
+        sample loading cannot stall sync. MIDI sync can be disabled by setting
+        MIDISENDSYNC to NO in config.xml.
+
 IMPORTANT!
 If using PPSSPP, Little Piggy Tracker will start up with a black screen
 Workaround:

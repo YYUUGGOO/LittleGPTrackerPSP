@@ -22,13 +22,12 @@ public:
 	virtual bool IsMulti() {return false ; } ;
 
 protected:
-	long readBlock(long position,long count) ;
+	bool readExact(void *destination,long count) ;
+	bool readAt(long position,void *destination,long count) ;
 private:
 	I_File *file_ ;  // File
-	void *readBuffer_ ; // Temp read buffer
-	int readBufferSize_; // Read buffer size
 	short *samples_ ; // sample buffer size (16 bits)
-	int sampleBufferSize_ ;
+	unsigned int sampleBufferSize_ ;
 	int size_ ; // number of samples
 	int sampleRate_ ; // sample rate
 	int channelCount_ ; // mono / stereo

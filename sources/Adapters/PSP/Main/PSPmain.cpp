@@ -22,6 +22,8 @@ PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 /* Define printf, just to make typing easier */
 #define printf	pspDebugScreenPrintf
 
+volatile int g_psp_exit_requested = 0;
+
 /* 
    This part of the code is more or less identical to the sdktest sample 
 */
@@ -31,7 +33,7 @@ PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 
 /* Exit callback */
 int exitCallback(int arg1, int arg2, void *common) {
-	sceKernelExitGame();
+	g_psp_exit_requested = 1;
 	return 0;
 }
 
@@ -74,4 +76,3 @@ int main(int argc,char *argv[])
 	sceKernelExitGame();
 	return 0 ;
 }
-

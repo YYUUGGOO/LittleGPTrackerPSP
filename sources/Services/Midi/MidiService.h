@@ -32,7 +32,7 @@ class MidiService : public T_Factory<MidiService>,
 
     //! player notification
 
-    void OnPlayerStart();
+    void OnPlayerStart(bool enableTransportSync = true);
     void OnPlayerStop();
 
     //! Queues a MidiMessage to the current time chunk
@@ -80,6 +80,7 @@ class MidiService : public T_Factory<MidiService>,
     int midiDelay_;
     int tickToFlush_;
     bool sendSync_;
+    bool transportRunning_;
     SysMutex queueMutex_;
 };
 #endif
