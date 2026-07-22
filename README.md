@@ -13,7 +13,7 @@ This fork keeps the shared tracker engine and only the platform code needed for 
 - Auditioning a non-MIDI instrument does not start external MIDI transport
 - Optimized long-sample loading with validated WAV parsing and large sequential reads
 
-The audio engine supports PCM WAV files with one or two channels and 8-bit or 16-bit samples. Samples are held in RAM during playback, so the total decoded sample set must still fit in the PSP's available memory.
+The audio engine supports PCM WAV files with one or two channels and 8-bit or 16-bit samples. Samples are held in RAM during playback, so the total decoded sample set must still fit in the PSP's available memory. Which is 32MB for the PSP-1000 series and 64MB for the 2000/3000/Go/E1000 series.
 
 ## Build
 
