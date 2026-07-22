@@ -32,6 +32,18 @@ Build outputs are written to `projects/buildPSP/`:
 
 Copy both files plus `projects/resources/PSP/config.xml` and `mapping.xml` into the same folder under `ms0:/PSP/GAME/`.
 
+## Releases and versioning
+
+Every push to `master` builds the PSP package and publishes a GitHub Release using strict SemVer tags such as `v1.0.0`.
+
+Automatic version bumps follow Conventional Commit messages:
+
+- `fix:` and other changes bump the patch version.
+- `feat:` bumps the minor version.
+- `type!:` or a `BREAKING CHANGE:` footer bumps the major version.
+
+The first automated release is `v1.0.0`. The release workflow can also be run manually with an explicit patch, minor, or major bump.
+
 ## Repository layout
 
 - `sources/Application`, `sources/Services`, `sources/System`: shared tracker engine

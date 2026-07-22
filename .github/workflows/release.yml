@@ -1,0 +1,129 @@
+name: Build and release PSP
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: SemVer bump override
+        required: true
+        default: auto
+        type: choice
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+concurrency:
+  group: psp-release-master
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    container: pspdev/pspdev:latest
+
+    steps:
+      - name: Check out repository and tags
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate next SemVer
+        id: version
+        env:
+          REQUESTED_BUMP: ${{ inputs.bump || 'auto' }}
+        shell: bash
+        run: |
+          LAST_TAG=$(git tag --list 'v*' --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)
+
+          if [ -n "$LAST_TAG" ] && [ "$(git rev-list -n 1 "$LAST_TAG")" = "$GITHUB_SHA" ]; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "tag=$LAST_TAG" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "$LAST_TAG" ]; then
+            VERSION=1.0.0
+          else
+            VERSION_BASE=${LAST_TAG#v}
+            IFS=. read -r MAJOR MINOR PATCH <<< "$VERSION_BASE"
+            BUMP=$REQUESTED_BUMP
+
+            if [ "$BUMP" = "auto" ]; then
+              git log "$LAST_TAG..HEAD" --format='%s%n%b' > /tmp/lgpt-release-commits.txt
+              if grep -Eq '^[[:alnum:]_-]+(\([^)]*\))?!:|BREAKING CHANGE:' /tmp/lgpt-release-commits.txt; then
+                BUMP=major
+              elif grep -Eq '^feat(\([^)]*\))?:' /tmp/lgpt-release-commits.txt; then
+                BUMP=minor
+              else
+                BUMP=patch
+              fi
+            fi
+
+            case "$BUMP" in
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              patch)
+                PATCH=$((PATCH + 1))
+                ;;
+              *)
+                echo "Unsupported SemVer bump: $BUMP" >&2
+                exit 1
+                ;;
+            esac
+            VERSION="$MAJOR.$MINOR.$PATCH"
+          fi
+
+          echo "release=true" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build PSP application
+        if: steps.version.outputs.release == 'true'
+        working-directory: projects
+        run: make -j2
+
+      - name: Create release package and checksum
+        if: steps.version.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          PACKAGE_DIR="$GITHUB_WORKSPACE/release/LittleGPTracker"
+          ARCHIVE="LittleGPTracker-PSP-$VERSION.zip"
+          mkdir -p "$PACKAGE_DIR"
+          cp projects/buildPSP/EBOOT.PBP \
+             projects/buildPSP/UsbMidiDriver.prx \
+             projects/resources/PSP/config.xml \
+             projects/resources/PSP/mapping.xml \
+             projects/resources/PSP/INSTALL_HOW_TO.txt \
+             "$PACKAGE_DIR/"
+          cd "$GITHUB_WORKSPACE/release"
+          zip -q -r "$ARCHIVE" LittleGPTracker
+          sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
+
+      - name: Publish GitHub Release
+        if: steps.version.outputs.release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: LittleGPTracker PSP ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            release/LittleGPTracker-PSP-${{ steps.version.outputs.version }}.zip
+            release/LittleGPTracker-PSP-${{ steps.version.outputs.version }}.zip.sha256
