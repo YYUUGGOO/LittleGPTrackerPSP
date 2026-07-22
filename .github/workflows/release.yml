@@ -25,9 +25,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  version:
     runs-on: ubuntu-latest
-    container: pspdev/pspdev:latest
+    outputs:
+      release: ${{ steps.version.outputs.release }}
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
 
     steps:
       - name: Check out repository and tags
@@ -92,38 +95,66 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
+  build:
+    needs: version
+    if: needs.version.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    container: pspdev/pspdev:latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
       - name: Build PSP application
-        if: steps.version.outputs.release == 'true'
         working-directory: projects
         run: make -j2
 
-      - name: Create release package and checksum
-        if: steps.version.outputs.release == 'true'
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        shell: bash
+      - name: Assemble PSP install folder
         run: |
-          PACKAGE_DIR="$GITHUB_WORKSPACE/release/LittleGPTracker"
-          ARCHIVE="LittleGPTracker-PSP-$VERSION.zip"
-          mkdir -p "$PACKAGE_DIR"
+          mkdir -p release/LittleGPTracker
           cp projects/buildPSP/EBOOT.PBP \
              projects/buildPSP/UsbMidiDriver.prx \
              projects/resources/PSP/config.xml \
              projects/resources/PSP/mapping.xml \
              projects/resources/PSP/INSTALL_HOW_TO.txt \
-             "$PACKAGE_DIR/"
-          cd "$GITHUB_WORKSPACE/release"
+             release/LittleGPTracker/
+
+      - name: Upload uncompressed PSP package
+        uses: actions/upload-artifact@v4
+        with:
+          name: psp-release-files
+          path: release/LittleGPTracker
+
+  release:
+    needs:
+      - version
+      - build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download PSP package
+        uses: actions/download-artifact@v4
+        with:
+          name: psp-release-files
+          path: release/LittleGPTracker
+
+      - name: Create ZIP and checksum
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        shell: bash
+        run: |
+          cd release
+          ARCHIVE="LittleGPTracker-PSP-$VERSION.zip"
           zip -q -r "$ARCHIVE" LittleGPTracker
           sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
 
       - name: Publish GitHub Release
-        if: steps.version.outputs.release == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.tag }}
+          tag_name: ${{ needs.version.outputs.tag }}
           target_commitish: ${{ github.sha }}
-          name: LittleGPTracker PSP ${{ steps.version.outputs.version }}
+          name: LittleGPTracker PSP ${{ needs.version.outputs.version }}
           generate_release_notes: true
           files: |
-            release/LittleGPTracker-PSP-${{ steps.version.outputs.version }}.zip
-            release/LittleGPTracker-PSP-${{ steps.version.outputs.version }}.zip.sha256
+            release/LittleGPTracker-PSP-${{ needs.version.outputs.version }}.zip
+            release/LittleGPTracker-PSP-${{ needs.version.outputs.version }}.zip.sha256
